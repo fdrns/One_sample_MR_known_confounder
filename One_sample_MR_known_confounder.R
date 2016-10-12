@@ -60,7 +60,7 @@ mod2_x <- model.matrix(mod2)[, -1]
 mod2_y <- model.response(model.frame(mod2))
 
 
-####R-square difference####
+####Adjusted R-square difference####
 
 #Fitness function R-squared difference
 fitness_rqsdiff <- function(string) {
@@ -100,6 +100,59 @@ mod_fin1<-lm(x1~.,data=data.frame(mod1_x[,GA_rqsdiff@solution==1]))
 x1Hat.GA_rqsdiff<-mod_fin1$fitted.values
 mrx1.GA_rqsdiff<-lm(y ~ x1Hat.GA_rqsdiff)
 summary(mrx1.GA_rqsdiff)
+
+
+####F-statistic difference####
+
+###With individual SNPs
+
+#Fitness function F ratio
+fitness_fratio <- function(string) {
+  #SNPs included in the chromosomes
+  inc <- which(string == 1)
+  
+  #Subset of SNPs to be used
+  X1 <- cbind(1, mod1_x[,inc])
+  #Rerun model for specific combination
+  model1 <- lm(mod1_y ~ X1)
+  #Extract F1
+  f1<-summary(model1)$fstatistic[1]
+  #If null set to 0
+  f1<-ifelse(is.null(f1),NA,f1)
+  
+  #Subset of SNPs to be used
+  X2 <- cbind(1, mod2_x[,inc])
+  #Rerun model for specific combination
+  model2 <- lm(mod2_y ~ X2)
+  #Extract F1
+  f2<-summary(model2)$fstatistic[1]
+  #If null set to 0
+  f2<-ifelse(is.null(f2),NA,f2)
+  
+  #F of overall models 1 and 2
+  f1_all<-summary(mod1)$fstatistic[1]
+  f2_all<-summary(mod2)$fstatistic[1]
+  
+  #Ratio of F-statistic between the two models
+  #return(f1/f2)
+  #Ratio of the F-statistic of the models scaled for F of full model
+  return((f1/f1_all)/(f2/f2_all))
+  
+}
+
+#Running the genetic algorithm
+GA_fratio <- ga("binary",fitness=fitness_fratio,nBits=ncol(SNPs),names=colnames(SNPs),
+                popSize = 40,maxiter=100,monitor=plot)
+#Summary of GA
+summary(GA_fratio)
+
+#Run IV two-stage IV with selected SNPs
+#Fitting selected model
+mod_fin1<-lm(x1~.,data=data.frame(mod1_x[,GA_fratio@solution==1]))
+x1Hat.GA_fratio<-mod_fin1$fitted.values
+mrx1.GA_fratio<-lm(y ~ x1Hat.GA_fratio)
+summary(mrx1.GA_fratio)
+
 
 ###With unweighted score
 
@@ -152,5 +205,3 @@ x1Hat.GA_fdiff<-mod_fin1$fitted.values
 mrx1.GA_fdiff<-lm(y ~ x1Hat.GA_fdiff)
 summary(mrx1)
 summary(mrx1.GA_fdiff)
-
-
